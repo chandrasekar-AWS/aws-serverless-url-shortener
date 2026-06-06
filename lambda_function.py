@@ -1,7 +1,7 @@
 import json
 import boto3
 import string
-import random
+import secrets                          # ✅ FIX 1: replaced 'random' with 'secrets'
 import os
 from datetime import datetime
 
@@ -12,11 +12,17 @@ BASE_URL = os.environ.get('BASE_URL', 'https://your-api-id.execute-api.us-east-1
 
 table = dynamodb.Table(TABLE_NAME)
 
+# ✅ FIX 2: CORS headers defined once, reused everywhere
+CORS_HEADERS = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*'
+}
+
 
 def generate_short_code(length=6):
-    """Generate a random alphanumeric short code."""
+    """Generate a cryptographically secure random alphanumeric short code."""
     characters = string.ascii_letters + string.digits
-    return ''.join(random.choices(characters, k=length))
+    return ''.join(secrets.choice(characters) for _ in range(length))  # ✅ FIX 1 applied here
 
 
 def create_short_url(long_url):
@@ -77,14 +83,14 @@ def lambda_handler(event, context):
             if not long_url:
                 return {
                     'statusCode': 400,
-                    'headers': {'Content-Type': 'application/json'},
+                    'headers': CORS_HEADERS,                # ✅ FIX 2 applied
                     'body': json.dumps({'error': 'Missing "url" in request body'})
                 }
 
             if not long_url.startswith(('http://', 'https://')):
                 return {
                     'statusCode': 400,
-                    'headers': {'Content-Type': 'application/json'},
+                    'headers': CORS_HEADERS,                # ✅ FIX 2 applied
                     'body': json.dumps({'error': 'URL must start with http:// or https://'})
                 }
 
@@ -92,7 +98,7 @@ def lambda_handler(event, context):
 
             return {
                 'statusCode': 201,
-                'headers': {'Content-Type': 'application/json'},
+                'headers': CORS_HEADERS,                    # ✅ FIX 2 applied
                 'body': json.dumps({
                     'short_url': short_url,
                     'short_code': short_code,
@@ -103,7 +109,7 @@ def lambda_handler(event, context):
         except Exception as e:
             return {
                 'statusCode': 500,
-                'headers': {'Content-Type': 'application/json'},
+                'headers': CORS_HEADERS,                    # ✅ FIX 2 applied
                 'body': json.dumps({'error': str(e)})
             }
 
@@ -115,19 +121,22 @@ def lambda_handler(event, context):
         if not long_url:
             return {
                 'statusCode': 404,
-                'headers': {'Content-Type': 'application/json'},
+                'headers': CORS_HEADERS,                    # ✅ FIX 2 applied
                 'body': json.dumps({'error': 'Short URL not found'})
             }
 
         return {
-            'statusCode': 301,
-            'headers': {'Location': long_url},
+            'statusCode': 302,                              # ✅ FIX 3: 301→302 so click counter works
+            'headers': {
+                'Location': long_url,
+                'Access-Control-Allow-Origin': '*'
+            },
             'body': ''
         }
 
     # ── Fallback ─────────────────────────────────────────────────────────────
     return {
         'statusCode': 400,
-        'headers': {'Content-Type': 'application/json'},
+        'headers': CORS_HEADERS,                            # ✅ FIX 2 applied
         'body': json.dumps({'error': 'Invalid request'})
     }

@@ -1,0 +1,3 @@
+# AWS SDK — pre-installed in Lambda runtime, listed here for local dev
+boto3>=1.26.0
+botocore>=1.29.0
